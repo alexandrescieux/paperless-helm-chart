@@ -1,0 +1,13 @@
+apiVersion: v2
+name: paperless
+version: 2.13.4
+description: Deploy a paperless server
+type: application
+keywords:
+  - paperless
+  - document
+  - ocr
+home: https://docs.paperless-ngx.com/
+sources:
+  - https://github.com/paperless-ngx/paperless-ngx
+appVersion: 2.13.4

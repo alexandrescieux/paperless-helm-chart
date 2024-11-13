@@ -1,0 +1,156 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Chart.Name }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  replicas: {{ .Values.deployment.paperless.replicas }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+    spec:
+      containers:
+        - name: {{ .Values.deployment.paperless.name }}
+          image: {{ .Values.deployment.paperless.image }}:{{ .Chart.AppVersion }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: {{ .Values.service.paperless.name }}
+              containerPort: {{ .Values.deployment.paperless.ports.containerPort }}
+              protocol: TCP
+          env:
+            - name: PAPERLESS_URL
+              value: {{ .Values.deployment.paperless.env.PAPERLESS_URL }}
+            - name: PAPERLESS_PORT
+              value: {{ .Values.deployment.paperless.env.PAPERLESS_PORT | quote }}
+            - name: PAPERLESS_DBHOST
+              value: {{ .Values.deployment.paperless.env.PAPERLESS_DBHOST }}
+            - name: PAPERLESS_REDIS
+              value: {{ .Values.deployment.paperless.env.PAPERLESS_REDIS }}
+            - name: PAPERLESS_OCR_LANGUAGE
+              value: {{ .Values.deployment.paperless.env.PAPERLESS_OCR_LANGUAGE }}
+            - name: PAPERLESS_OCR_USER_ARGS
+              value: {{ .Values.deployment.paperless.env.PAPERLESS_OCR_USER_ARGS | toJson | quote }}
+            - name: PAPERLESS_SECRET_KEY
+              valueFrom: 
+                secretKeyRef:
+                  name: credentials
+                  key: PAPERLESS_SECRET_KEY
+            - name: PAPERLESS_ADMIN_USER
+              valueFrom: 
+                secretKeyRef:
+                  name: credentials
+                  key: PAPERLESS_ADMIN_USER
+            - name: PAPERLESS_ADMIN_PASSWORD
+              valueFrom: 
+                secretKeyRef:
+                  name: credentials
+                  key: PAPERLESS_ADMIN_PASSWORD
+            - name: PAPERLESS_ADMIN_MAIL
+              value: {{ .Values.deployment.paperless.env.PAPERLESS_ADMIN_MAIL }}
+            - name: PAPERLESS_EMAIL_HOST
+              value: {{ .Values.deployment.paperless.env.PAPERLESS_EMAIL_HOST }}
+            - name: PAPERLESS_EMAIL_PORT
+              value: {{ .Values.deployment.paperless.env.PAPERLESS_EMAIL_PORT | quote }}
+            - name: PAPERLESS_EMAIL_HOST_USER
+              valueFrom: 
+                secretKeyRef:
+                  name: credentials
+                  key: PAPERLESS_EMAIL_HOST_USER
+            - name: PAPERLESS_EMAIL_HOST_PASSWORD
+              valueFrom: 
+                secretKeyRef:
+                  name: credentials
+                  key: PAPERLESS_EMAIL_HOST_PASSWORD
+            - name: PAPERLESS_EMAIL_USE_TLS
+              value: {{ .Values.deployment.paperless.env.PAPERLESS_EMAIL_USE_TLS | quote }}
+            - name: PAPERLESS_EMAIL_FROM
+              value: {{ .Values.deployment.paperless.env.PAPERLESS_EMAIL_FROM }}
+          volumeMounts:
+            - name: {{ .Values.deployment.paperless.volume.paperlessdata.name }}
+              mountPath: {{ .Values.deployment.paperless.volume.paperlessdata.volumeMounts.mountPath }}
+              readOnly: {{ .Values.deployment.paperless.volume.paperlessdata.volumeMounts.readOnly }}
+            - name: {{ .Values.deployment.paperless.volume.paperlessmedia.name }}
+              mountPath: {{ .Values.deployment.paperless.volume.paperlessmedia.volumeMounts.mountPath }}
+              readOnly: {{ .Values.deployment.paperless.volume.paperlessmedia.volumeMounts.readOnly }}
+            - name: {{ .Values.deployment.paperless.volume.paperlessexport.name }}
+              mountPath: {{ .Values.deployment.paperless.volume.paperlessexport.volumeMounts.mountPath }}
+              readOnly: {{ .Values.deployment.paperless.volume.paperlessexport.volumeMounts.readOnly }}
+            - name: {{ .Values.deployment.paperless.volume.paperlessconsume.name }}
+              mountPath: {{ .Values.deployment.paperless.volume.paperlessconsume.volumeMounts.mountPath }}
+              readOnly: {{ .Values.deployment.paperless.volume.paperlessconsume.volumeMounts.readOnly }}
+          resources:
+            requests:
+              cpu: {{ .Values.deployment.paperless.resources.requests.cpu }}
+              memory: {{ .Values.deployment.paperless.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.deployment.paperless.resources.limits.cpu }}
+              memory: {{ .Values.deployment.paperless.resources.limits.memory }}
+        - name: {{ .Values.deployment.postgresql.name }}
+          image: {{ .Values.deployment.postgresql.image }}
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: {{ .Values.deployment.postgresql.volume.pgdata.name }}
+              mountPath: {{ .Values.deployment.postgresql.volume.pgdata.volumeMounts.mountPath }}
+              readOnly: {{ .Values.deployment.postgresql.volume.pgdata.volumeMounts.readOnly }}
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.deployment.postgresql.env.POSTGRES_USER }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.deployment.postgresql.env.POSTGRES_PASSWORD }}
+            - name: POSTGRES_DB
+              value: {{ .Values.deployment.postgresql.env.POSTGRES_DB }}
+          resources:
+            requests:
+              cpu: {{ .Values.deployment.postgresql.resources.requests.cpu }}
+              memory: {{ .Values.deployment.postgresql.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.deployment.postgresql.resources.limits.cpu }}
+              memory: {{ .Values.deployment.postgresql.resources.limits.memory }}
+          livenessProbe:
+            exec:
+              command:
+              - sh
+              - -c
+              - "pg_isready -U {{ .Values.deployment.postgresql.env.POSTGRES_USER }}"
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+              - sh
+              - -c
+              - "pg_isready -U {{ .Values.deployment.postgresql.env.POSTGRES_USER }}"
+            initialDelaySeconds: 10
+            periodSeconds: 10
+        - name: {{ .Values.deployment.redis.name }}
+          image: {{ .Values.deployment.redis.image }}
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: {{ .Values.deployment.redis.resources.requests.cpu }}
+              memory: {{ .Values.deployment.redis.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.deployment.redis.resources.limits.cpu }}
+              memory: {{ .Values.deployment.redis.resources.limits.memory }}
+      volumes:
+        - name: {{ .Values.deployment.paperless.volume.paperlessdata.name }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.deployment.paperless.volume.paperlessdata.persistentVolumeClaim.claimName }}
+        - name: {{ .Values.deployment.paperless.volume.paperlessmedia.name }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.deployment.paperless.volume.paperlessmedia.persistentVolumeClaim.claimName }}
+        - name: {{ .Values.deployment.paperless.volume.paperlessexport.name }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.deployment.paperless.volume.paperlessexport.persistentVolumeClaim.claimName }}
+        - name: {{ .Values.deployment.paperless.volume.paperlessconsume.name }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.deployment.paperless.volume.paperlessconsume.persistentVolumeClaim.claimName }}
+        - name: {{ .Values.deployment.postgresql.volume.pgdata.name }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.deployment.postgresql.volume.pgdata.persistentVolumeClaim.claimName }}

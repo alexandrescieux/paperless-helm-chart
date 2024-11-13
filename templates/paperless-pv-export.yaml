@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.volumes.paperlessexport.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  storageClassName: manual
+  capacity:
+    storage: {{ .Values.volumes.paperlessexport.storage }}
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+     namespace: {{ .Release.Namespace }}
+     name: {{ .Values.volumes.paperlessexport.name }}
+  hostPath:
+    path: {{ .Values.volumes.paperlessexport.hostpath }}

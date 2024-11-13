@@ -1,0 +1,143 @@
+namespace: paperless
+
+certificate:
+  issuer: letsencrypt-prod
+  commonName: my.hostname.com
+
+secret:
+  paperless:
+    PAPERLESS_SECRET_KEY: XXXXXXXXXXXXXXXXXXXX # Random key. Faceroll your keyboard. The longer the better.
+    PAPERLESS_ADMIN_USER: admin
+    PAPERLESS_ADMIN_PASSWORD: my-super-password
+    PAPERLESS_EMAIL_HOST_USER: your_smtp_user
+    PAPERLESS_EMAIL_HOST_PASSWORD: your_smtp_password
+
+deployment:
+  paperless:
+    name: paperless
+    image: ghcr.io/paperless-ngx/paperless-ngx
+    replicas: 1
+    ports:
+      containerPort: 8000
+    env:
+      PAPERLESS_URL: https://my.hostname.com
+      PAPERLESS_PORT: 8000
+      PAPERLESS_DBHOST: postgresql
+      PAPERLESS_REDIS: redis://redis:6379
+      PAPERLESS_OCR_LANGUAGE: fra
+      PAPERLESS_OCR_USER_ARGS: {"invalidate_digital_signatures": true} # Allow digitally signed PDF to be added without OCRmyPDF throwing an error
+      PAPERLESS_ADMIN_MAIL: paperless-admin@my.hostname.com
+      PAPERLESS_EMAIL_HOST: your.smtp.provider.com
+      PAPERLESS_EMAIL_PORT: 25
+      PAPERLESS_EMAIL_USE_TLS: true
+      PAPERLESS_EMAIL_FROM: paperless@my.hostname.com
+    volume:
+      paperlessdata:
+        name: paperlessdata
+        volumeMounts:
+          mountPath: /usr/src/paperless/data
+          readOnly: false
+        persistentVolumeClaim:
+          claimName: paperlessdata
+      paperlessmedia:
+        name: paperlessmedia
+        volumeMounts:
+          mountPath: /usr/src/paperless/media
+          readOnly: false
+        persistentVolumeClaim:
+          claimName: paperlessmedia
+      paperlessexport:
+        name: paperlessexport
+        volumeMounts:
+          mountPath: /usr/src/paperless/export
+          readOnly: false
+        persistentVolumeClaim:
+          claimName: paperlessexport
+      paperlessconsume:
+        name: paperlessconsume
+        volumeMounts:
+          mountPath: /usr/src/paperless/consume
+          readOnly: false
+        persistentVolumeClaim:
+          claimName: paperlessconsume
+    resources:
+      requests:
+        cpu: "10m"
+        memory: "100Mi"
+      limits:
+        cpu: "2"
+        memory: "4Gi"
+  postgresql:
+    name: postgresql
+    image: postgres:16-alpine
+    replicas: 1
+    ports:
+      containerPort: 5432
+    volume:
+      pgdata:
+        name: pgdata
+        volumeMounts:
+          mountPath: /var/lib/postgresql/data
+          readOnly: false
+        persistentVolumeClaim:
+          claimName: pgdata
+    env:
+      POSTGRES_USER: paperless
+      POSTGRES_PASSWORD: paperless
+      POSTGRES_DB: paperless
+    resources:
+      requests:
+        cpu: "10m"
+        memory: "100Mi"
+      limits:
+        cpu: "1"
+        memory: "1Gi"
+  redis:
+    name: redis
+    image: redis:alpine
+    replicas: 1
+    ports:
+      containerPort: 6379
+    resources:
+      requests:
+        cpu: "5m"
+        memory: "50Mi"
+      limits:
+        cpu: "50m"
+        memory: "500Mi"
+
+service:
+  paperless:
+    name: paperless
+    port: 8000
+    targetPort: 8000
+  postgresql:
+    name: postgresql
+    port: 5432
+    targetPort: 5432
+  redis:
+    name: redis
+    port: 6379
+    targetPort: 6379
+
+volumes:
+  paperlessdata:
+    name: paperlessdata
+    storage: 10Gi
+    hostpath: /mnt/paperless/paperlessdata
+  paperlessmedia:
+    name: paperlessmedia
+    storage: 100Gi
+    hostpath: /mnt/paperless/paperlessmedia
+  paperlessexport:
+    name: paperlessexport
+    storage: 10Gi
+    hostpath: /mnt/paperless/paperlessexport
+  paperlessconsume:
+    name: paperlessconsume
+    storage: 10Gi
+    hostpath: /mnt/paperless/paperlessconsume
+  pgdata:
+    name: pgdata
+    storage: 10Gi
+    hostpath: /mnt/paperless/pgdata
